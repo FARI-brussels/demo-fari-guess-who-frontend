@@ -99,7 +99,6 @@ async function submitPrompt() {
   prompt.value = ''
   turn.value = 'ai'
 
-  console.log({ response })
   if (response.decision_tree) {
     treeData.value = response.decision_tree
   }

@@ -1,19 +1,14 @@
 <!-- App.vue -->
 <template>
   <div id="app" class="bg-color-blue">
-    <!-- <header>
-      <FDemoAppBar dense @exit="webSocketStore.sendFastify('stop')" />
-    </header> -->
+    <FDemoAppBar
+      v-if="isInteractiveRoute"
+      dense
+      @exit="webSocketStore.sendFastify('stop')"
+      class="appbar"
+    />
+
     <main>
-      <!-- Passing the necessary WebSocket methods and state to the child components via router-view -->
-      <!-- <router-view
-        :status="webSocketStore.fastifyStatus"
-        :started="webSocketStore.fastifyStarted"
-        :data="webSocketStore.fastifyData"
-        :send="webSocketStore.sendFastify"
-        :open="webSocketStore.openFastify"
-        :close="webSocketStore.closeFastify"
-      /> -->
       <router-view v-slot="{ Component }">
         <transition name="fade">
           <component
@@ -35,18 +30,28 @@
 </template>
 
 <script setup lang="ts">
-import { FTitle, FSubTitle, FFooter, FDemoAppBar } from 'fari-component-library'
-
+import { FFooter, FDemoAppBar } from 'fari-component-library'
 import { useWebSocketStore } from './stores/ws'
+import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 
 const webSocketStore = useWebSocketStore()
+
+const route = useRoute()
+const isInteractiveRoute = computed(() => {
+  return route.name === 'interactive'
+})
 </script>
 
 <style scoped lang="scss">
 main {
-  // padding: 2rem;
   width: 100%;
   height: 100%;
+}
+.appbar {
+  position: absolute;
+  top: 2rem;
+  z-index: 1;
 }
 footer {
   margin-top: auto;
