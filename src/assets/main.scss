@@ -1,0 +1,10 @@
+@import './base.scss';
+
+#app {
+  width: 1080px;
+  height: 1920px;
+  // padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  font-weight: normal;
+}
