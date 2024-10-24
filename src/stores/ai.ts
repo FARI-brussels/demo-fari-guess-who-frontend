@@ -25,6 +25,7 @@ export const useAIStore = defineStore('aiStore', () => {
 
   async function initialize() {
     loading.value = true
+    winner.value = null
     await fetch('http://localhost:3000/initialize')
     loading.value = false
   }
