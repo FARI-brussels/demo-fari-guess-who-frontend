@@ -56,13 +56,33 @@
       </DialogContainer>
     </Transition>
 
+    <Transition>
+      <DialogContainer v-if="showWinner">
+        <template #title> Winner is </template>
+        <template #description>
+          <div class="winner-container">
+            {{
+              ai.winner === 'human'
+                ? 'You! Play again if you like'
+                : 'Unfortunately, the algorithm won, you can always try to play again'
+            }}
+            <img v-if="ai.winner === 'human'" src="@/assets/human_avatar.svg" />
+            <img v-else src="@/assets/robot_avatar.svg" />
+          </div>
+        </template>
+        <template #action>
+          <FButton label="close" @click="showWinner = false" />
+        </template>
+      </DialogContainer>
+    </Transition>
+
     <div class="backdrop" :class="{ 'backdrop-active': turn === 'ai' || showInfoCard }"></div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { FButtonIcon, FIcon } from 'fari-component-library'
+import { FButtonIcon, FButton, FIcon } from 'fari-component-library'
 import { useWebSocketStore } from '../stores/ws'
 import { useAIStore } from '@/stores/ai'
 import { useGameStore } from '@/stores/game'
@@ -89,6 +109,8 @@ const prompt = defineModel()
 
 const treeData = ref(null)
 
+const showWinner = ref(false)
+
 function startGame() {
   showInfoCard.value = true
   gameStarted.value = true
@@ -97,11 +119,12 @@ function startGame() {
 async function submitPrompt() {
   const response = await askQuestion(prompt.value)
   prompt.value = ''
-  turn.value = 'ai'
 
   if (response.decision_tree) {
     treeData.value = response.decision_tree
   }
+  if (ai.winner) showWinner.value = true
+  else turn.value = 'ai'
 }
 
 async function submitAnswer(answer: boolean) {
@@ -120,6 +143,15 @@ watch(
   (started) => !started && router.push('/interactive-start'),
   {
     immediate: true
+  }
+)
+
+watch(
+  () => ai.winner,
+  (winner) => {
+    if (winner) {
+      showWinner.value = true
+    }
   }
 )
 </script>
@@ -175,6 +207,11 @@ watch(
     backdrop-filter: blur(2px);
     transition: all 200ms;
   }
+}
+
+.winner-container {
+  display: flex;
+  flex-direction: column;
 }
 
 .v-enter-active,

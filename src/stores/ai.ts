@@ -10,6 +10,7 @@ export const useAIStore = defineStore('aiStore', () => {
 
   const loading = ref(false)
   const gameStarted = ref(false)
+  const winner = ref<'ai' | 'human' | null>(null)
 
   const robotAnswer = ref({
     response: ''
@@ -48,6 +49,8 @@ export const useAIStore = defineStore('aiStore', () => {
     }
 
     filterCharacters(remaining_characters)
+    console.log(remaining_characters.length)
+    if (remaining_characters.length === 1) winner.value = 'human'
     return json
   }
 
@@ -64,9 +67,12 @@ export const useAIStore = defineStore('aiStore', () => {
     const json = await res.json()
     const { decision_tree = null, remaining_characters = null } = json.response
 
+    if (remaining_characters?.length === 1) winner.value = 'ai'
+
     ws.sendFastify(JSON.stringify({ decision_tree, remaining_characters }))
+
     return
   }
 
-  return { initialize, askQuestion, answerQuestion, loading, robotQuestion }
+  return { initialize, askQuestion, answerQuestion, loading, robotQuestion, winner }
 })
