@@ -6,11 +6,21 @@
       placeholder="Enter your text here..."
       class="font-weight-semibold"
     />
+    <img src="@/assets/loading.svg" v-if="loading" class="spinner" />
+
     <FButtonIcon
-      class="action/button"
+      v-else-if="icon === 'check'"
       name="check"
       color="green"
       small
+      role="submit"
+      @click="emit('submit')"
+      @keyup.enter="emit('submit')"
+    />
+    <img
+      v-else
+      src="@/assets/send.svg"
+      class="send"
       @click="emit('submit')"
       @keyup.enter="emit('submit')"
     />
@@ -21,6 +31,8 @@
 import { FButtonIcon } from 'fari-component-library'
 const emit = defineEmits('submit')
 const model = defineModel()
+
+defineProps<{ loading: boolean; icon: string }>()
 </script>
 
 <style scoped lang="scss">
@@ -45,5 +57,20 @@ const model = defineModel()
       color: white;
     }
   }
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+}
+
+.send {
+  width: 56px;
+  height: 56px;
+  z-index: 2;
+  background-color: #00a607;
+  border-radius: 50%;
+  padding: 1rem;
+  // background: url('@/assets/send.svg');
 }
 </style>
