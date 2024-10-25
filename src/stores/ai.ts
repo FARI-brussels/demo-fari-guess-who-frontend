@@ -52,6 +52,7 @@ export const useAIStore = defineStore('aiStore', () => {
     filterCharacters(remaining_characters)
     console.log(remaining_characters.length)
     if (remaining_characters.length === 1) winner.value = 'human'
+    loading.value = false
     return json
   }
 
