@@ -27,7 +27,13 @@
         </ImageCard>
       </Suspense>
       <Transition name="fade">
-        <TextInput v-if="gameStarted" v-model="prompt" @submit="submitPrompt" />
+        <TextInput
+          v-if="gameStarted"
+          v-model="prompt"
+          @submit="submit"
+          :loading="ai?.loading"
+          :icon="icon"
+        />
       </Transition>
     </div>
 
@@ -76,7 +82,10 @@
       </DialogContainer>
     </Transition>
 
-    <div class="backdrop" :class="{ 'backdrop-active': turn === 'ai' || showInfoCard }"></div>
+    <div
+      class="backdrop"
+      :class="{ 'backdrop-active': turn === 'ai' || showInfoCard || showWinner }"
+    ></div>
   </div>
 </template>
 
@@ -111,28 +120,46 @@ const treeData = ref(null)
 
 const showWinner = ref(false)
 
+const icon = ref<'check' | 'send'>('send')
+
 function startGame() {
   showInfoCard.value = true
   gameStarted.value = true
 }
 
-async function submitPrompt() {
-  const response = await askQuestion(prompt.value)
-  prompt.value = ''
-
-  if (response.decision_tree) {
-    treeData.value = response.decision_tree
+async function submit() {
+  if (turn.value === 'human') {
+    if (icon.value === 'send') {
+      await submitPrompt()
+    } else {
+      turn.value = 'ai'
+      prompt.value = ''
+      icon.value = 'send'
+    }
   }
-  if (ai.winner) showWinner.value = true
-  else turn.value = 'ai'
 }
 
-async function submitAnswer(answer: boolean) {
-  await answerQuestion(answer)
+async function submitPrompt() {
+  if (prompt.value.trim() === '') return
+
+  const response = await askQuestion(prompt.value)
+
+  if (response.decision_tree) treeData.value = response.decision_tree
+  if (ai.winner) showWinner.value = true
+
+  icon.value = 'check'
   turn.value = 'human'
 }
 
+async function submitAnswer(answer) {
+  await answerQuestion(answer)
+  turn.value = 'human'
+  prompt.value = ''
+  icon.value = 'send'
+}
+
 const select = (image) => (selectedImage.value = image)
+
 onMounted(async () => {
   await ai.initialize()
   await gameStore.loadImages()
@@ -197,7 +224,7 @@ watch(
   width: 100%;
   height: 100%;
   backdrop-filter: blur(0);
-  z-index: 1;
+  z-index: 2;
   transition: all 100ms;
 
   &-active {
@@ -212,6 +239,8 @@ watch(
 .winner-container {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 2rem;
 }
 
 .v-enter-active,
