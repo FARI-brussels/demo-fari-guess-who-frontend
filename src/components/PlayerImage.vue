@@ -17,12 +17,12 @@
     <div
       :class="{
         overlay: true,
-        'overlay-visible': !remaining && !gray,
-        'overlay-visible-gray': !remaining && gray,
+        'bg-color-primary': true,
+        'overlay-visible': !remaining,
         'overlay-selected': selected
       }"
     />
-    <img :src="path" :alt="name" class="portrait" :class="{ disabled: !remaining }" />
+    <img :src="path" :alt="name" class="portrait" />
     <p
       :class="{
         selected,
@@ -40,7 +40,6 @@ defineProps<{
   path: string
   remaining: boolean
   selected: boolean
-  gray?: boolean
 }>()
 </script>
 
@@ -58,9 +57,9 @@ defineProps<{
     transition: opacity 200ms ease-in;
     z-index: 1;
 
-    // &-visible {
-    //   opacity: 1;
-    // }
+    &-visible {
+      opacity: 1;
+    }
   }
 
   .checked {
@@ -69,7 +68,7 @@ defineProps<{
     top: -5%;
     opacity: 0;
     transition: opacity 200ms ease-in;
-    z-index: 2;
+    z-index: 1;
 
     &-visible {
       opacity: 1;
@@ -83,15 +82,11 @@ defineProps<{
     background-color: transparent;
     transition: all 200ms ease-in;
     border-radius: 1rem;
-    z-index: 1;
 
     &-visible {
-      opacity: 1;
-      background-color: #183e9199;
-    }
-    &-visible-gray {
-      opacity: 1;
-      background-color: #45454599;
+      opacity: 0.8;
+      background-color: #183e91;
+      // background-color: #183e9199;
     }
     &-selected {
       box-shadow: inset 0px 0px 0px 4px #64d8bf;
@@ -109,9 +104,8 @@ defineProps<{
     color: white;
     position: absolute;
     font-weight: bold;
-    bottom: 0rem;
+    bottom: 0.1rem;
     width: 100%;
-    z-index: 1;
     background: #183e9180;
     text-align: center;
     border-bottom-left-radius: 1rem;
@@ -121,10 +115,6 @@ defineProps<{
 
   .selected {
     background-color: #64d8bf;
-  }
-
-  .disabled {
-    filter: grayscale(1);
   }
 }
 </style>
