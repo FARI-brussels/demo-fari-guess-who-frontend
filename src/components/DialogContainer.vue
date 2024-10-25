@@ -20,8 +20,8 @@ import { FContainer } from 'fari-component-library'
 .card {
   position: absolute;
   top: 25%;
-  left: 15%;
-  z-index: 2;
+  left: 20%;
+  z-index: 3;
   width: 42rem;
   display: flex;
   flex-direction: column;
