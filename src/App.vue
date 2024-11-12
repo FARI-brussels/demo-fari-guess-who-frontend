@@ -1,4 +1,3 @@
-<!-- App.vue -->
 <template>
   <div id="app" class="bg-color-blue">
     <FDemoAppBar
@@ -23,9 +22,8 @@
         </transition>
       </router-view>
     </main>
-    <footer v-if="!webSocketStore.fastifyStarted">
-      <FFooter></FFooter>
-    </footer>
+
+    <FFooter v-if="route.name === 'interactive-start'"></FFooter>
   </div>
 </template>
 
@@ -55,6 +53,9 @@ main {
 }
 footer {
   margin-top: auto;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
 }
 
 .fade-enter-active,

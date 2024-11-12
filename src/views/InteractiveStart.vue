@@ -2,38 +2,34 @@
   <div class="bg-color-blue">
     <div class="title-container">
       <FTitle> Guess who </FTitle>
-      <FSubTitle> Resource optimization</FSubTitle>
+      <FSubTitle> AI Education</FSubTitle>
     </div>
-    <FButton class="start-button" @click="send('start')" label="start" />
-    <!-- <img src="@/assets/screen.svg" /> -->
+    <FButton class="start-button" @click="router.push('/character-select')" label="start" />
+    <video class="video" :src="startScreenAnimation" autoplay loop muted>
+      Your browser does not support the video tag.
+    </video>
   </div>
 </template>
 
 <script setup lang="ts">
-import { FTitle, FSubTitle, FFooter, FButton } from 'fari-component-library'
-import { useWebSocketStore } from '../stores/ws'
-import { watch } from 'vue'
+import { FTitle, FSubTitle, FButton } from 'fari-component-library'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useGameStore } from '@/stores/game'
+import startScreenAnimation from '@/assets/videos/startscreen_animation_human.mp4'
 
 const router = useRouter()
+const gameStore = useGameStore()
 
-const webSocketStore = useWebSocketStore()
-
-defineProps<{ send: Function; started: boolean }>()
-
-watch(
-  () => webSocketStore.fastifyStarted,
-  (started) => {
-    console.log({ started })
-    if (started) {
-      console.log({ router })
-      router.push('/interactive')
-    }
-  }
-)
+onMounted(async () => await gameStore.loadImages())
+console.log('Video Source Path:', startScreenAnimation)
 </script>
 
 <style scoped lang="scss">
+.title {
+  font-size: 3rem;
+}
+
 .title-container {
   position: absolute;
   display: flex;
@@ -47,5 +43,13 @@ watch(
   position: absolute;
   left: 45%;
   top: 45%;
+}
+
+.video {
+  width: 100%;
+  height: auto;
+  z-index: -1;
+  pointer-events: none;
+  object-fit: cover;
 }
 </style>

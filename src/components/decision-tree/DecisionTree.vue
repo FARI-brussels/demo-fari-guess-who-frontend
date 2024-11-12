@@ -40,7 +40,6 @@ onMounted(() => createDecisionTree(props.data))
 
 watchEffect(() => {
   if (svgTree.value) {
-    console.log(props.data, 'hi')
     d3.select(svgTree.value).selectAll('*').remove()
     createDecisionTree(props.data)
 
@@ -77,6 +76,10 @@ function createBaseTree(treeData) {
 
   g.attr('height', treeHeight)
 
+  const paths = getAllPaths(root)
+
+  const longestPath = getLongestPath(paths)
+
   const link = g
     .selectAll('.link')
     .data(root.descendants().slice(1))
@@ -86,15 +89,17 @@ function createBaseTree(treeData) {
     .attr(
       'd',
       (d) => `
-            M${d.x},${d.y}
-            L${d.x},${(d.y + d.parent.y) / 2}
-            L${d.parent.x},${d.parent.y}
-          `
+        M${d.x},${d.y}
+        L${d.x},${(d.y + d.parent.y) / 2}
+        L${d.parent.x},${d.parent.y}
+      `
     )
     .style('fill', 'none')
     .style('stroke', props.color === 'gray' ? '#959595' : '#4393DE')
-    .style('stroke-width', '2px')
-    .style('stroke-dasharray', '5,5')
+    .style('stroke-width', (d) => (isInLongestPath(d, longestPath) && d.children ? '3px' : '1px'))
+    .style('stroke-dasharray', (d) =>
+      isInLongestPath(d, longestPath) && d.children ? null : '5,5'
+    )
 
   const node = g
     .selectAll('.node')
@@ -261,6 +266,8 @@ function renderImages(node) {
     if (!d.children) {
       if (!d.data || !d.data.name) return
       const name = d.data.name.split(' (')[0].toLowerCase()
+      console.log({ name })
+      if (name.includes('answer')) return
 
       const imageUrl = `${characterImagePath}${name}.jpg`
 
@@ -295,6 +302,32 @@ function renderImages(node) {
     }
   })
 }
+
+function getAllPaths(node, currentPath = []) {
+  const paths = []
+
+  currentPath.push(node)
+
+  if (!node.children || node.children.length === 0) {
+    paths.push(currentPath)
+  } else {
+    node.children.forEach((child) => {
+      paths.push(...getAllPaths(child, [...currentPath]))
+    })
+  }
+
+  return paths
+}
+
+function getLongestPath(paths) {
+  return paths.reduce((longest, current) => {
+    return current.length > longest.length ? current : longest
+  }, [])
+}
+
+function isInLongestPath(d, longestPath) {
+  return longestPath.includes(d)
+}
 </script>
 
 <style scoped lang="scss">
@@ -305,8 +338,8 @@ function renderImages(node) {
 }
 #decision-tree-section {
   width: 100%;
-  height: 100%;
   overflow: hidden;
+  height: 1000px;
 }
 
 svg {

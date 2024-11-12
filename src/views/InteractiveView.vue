@@ -1,66 +1,62 @@
 <template>
   <div class="wrapper">
-    <div class="interactive-container">
-      <h2 class="color-white font-weight-black title">
-        {{
-          !gameStarted ? 'Choose your character' : turn === 'human' ? 'Your turn' : 'Opponents turn'
-        }}
-      </h2>
+    <div class="character-panel">
       <Suspense>
-        <ImageCard class="border-color-blue">
-          <template #images>
+        <div class="bg-color-white p-sm rounded-s character-select">
+          <div class="image-container">
             <PlayerImage
               v-for="{ name, path, remaining } in gameStore.allCharacters"
               :key="name"
-              @click="!gameStarted && select(name)"
               :remaining="remaining"
-              :selected="selectedImage === name"
+              :selected="false"
               :path="path"
               :name="name"
             />
-          </template>
-
-          <template v-if="!gameStarted" #actions>
-            <FButtonIcon name="cross" color="red" :disabled="!selectedImage" />
-            <FButtonIcon name="check" color="green" :disabled="!selectedImage" @click="startGame" />
-          </template>
-        </ImageCard>
+          </div>
+        </div>
       </Suspense>
-      <Transition name="fade">
-        <TextInput
-          v-if="gameStarted"
-          v-model="prompt"
-          @submit="submit"
-          :loading="ai?.loading"
-          :icon="icon"
+      <div class="selected-character-container rounded-s bg-color-blue p-sm">
+        <PlayerImageLarge
+          :name="gameStore.selectedCharacter"
+          :path="characterImage.path"
+          framed
+          selected
         />
-      </Transition>
+      </div>
     </div>
-
-    <DecisionTree class="tree" v-if="treeData" :data="treeData" />
-
-    <Transition>
-      <DialogContainer v-if="showInfoCard">
-        <template #title> Your turn</template>
-        <template #description>
-          Ask a question in the textfield and hit <FIcon name="check" color="green"> </FIcon>
-        </template>
-        <template #action>
-          <FButtonIcon name="check" color="green" @click="showInfoCard = false" />
-        </template>
-      </DialogContainer>
-    </Transition>
-
-    <Transition>
-      <DialogContainer v-if="turn === 'ai'">
-        <template #title> Opponents question</template>
-        <template #description>{{ ai?.robotQuestion.robot_question }}</template>
-        <template #action>
-          <FButtonIcon name="cross" color="red" @click="submitAnswer(false)" />
-          <FButtonIcon name="check" color="green" @click="submitAnswer(true)"
-        /></template>
-      </DialogContainer>
-    </Transition>
+    <div class="questions-container">
+      <div class="ai-question">
+        <img src="@/assets/ai_input_icon.svg" class="mr-md" />
+        {{ displayedQuestion }}
+        <div class="actions">
+          <FButtonIcon
+            v-if="turn === 'ai'"
+            name="cross"
+            color="red"
+            small
+            @click="submitAnswer(false)"
+          />
+          <FButtonIcon
+            v-if="turn === 'ai'"
+            name="check"
+            color="green"
+            small
+            @click="submitAnswer(true)"
+          />
+        </div>
+      </div>
+      <TextInput
+        v-model="prompt"
+        @submit="submit"
+        :loading="ai?.loading"
+        :disabled="turn === 'ai'"
+        icon="check"
+      />
+    </div>
+    <div class="interactive-container"></div>
+    <div class="decision-tree-container">
+      <DecisionTree class="tree" v-if="treeData" :data="treeData" />
+    </div>
 
     <Transition>
       <DialogContainer v-if="showWinner">
@@ -82,23 +78,20 @@
       </DialogContainer>
     </Transition>
 
-    <div
-      class="backdrop"
-      :class="{ 'backdrop-active': turn === 'ai' || showInfoCard || showWinner }"
-    ></div>
+    <div class="backdrop" :class="{ 'backdrop-active': showWinner }"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { FButtonIcon, FButton, FIcon } from 'fari-component-library'
+import { ref, onMounted, watch, computed } from 'vue'
+import { FButtonIcon, FButton } from 'fari-component-library'
 import { useWebSocketStore } from '../stores/ws'
 import { useAIStore } from '@/stores/ai'
 import { useGameStore } from '@/stores/game'
 import { useRouter } from 'vue-router'
 import PlayerImage from '@/components/PlayerImage.vue'
-import ImageCard from '@/components/ImageCard.vue'
 import TextInput from '@/components/TextInput.vue'
+import PlayerImageLarge from '@/components/PlayerImageLarge.vue'
 import DialogContainer from '@/components/DialogContainer.vue'
 import DecisionTree from '@/components/decision-tree/DecisionTree.vue'
 
@@ -108,11 +101,7 @@ const { askQuestion, answerQuestion } = useAIStore()
 const ai = useAIStore()
 const gameStore = useGameStore()
 
-const selectedImage = ref(null)
-
-const showInfoCard = ref(false)
 const turn = ref<'ai' | 'human'>('human')
-const gameStarted = ref(false)
 
 const prompt = defineModel()
 
@@ -120,23 +109,35 @@ const treeData = ref(null)
 
 const showWinner = ref(false)
 
-const icon = ref<'check' | 'send'>('send')
+const aiLoading = ref(false)
+const displayedQuestion = ref('')
 
-function startGame() {
-  showInfoCard.value = true
-  gameStarted.value = true
+function typeText(text) {
+  displayedQuestion.value = ''
+  let index = 0
+  const typingSpeed = 50
+
+  const interval = setInterval(() => {
+    if (index < text.length) {
+      displayedQuestion.value += text[index]
+      index++
+    } else {
+      clearInterval(interval)
+    }
+  }, typingSpeed)
 }
 
-async function submit() {
-  if (turn.value === 'human') {
-    if (icon.value === 'send') {
-      await submitPrompt()
-    } else {
-      turn.value = 'ai'
-      prompt.value = ''
-      icon.value = 'send'
-    }
+watch(
+  () => ai.robotQuestion.robot_question,
+  (newQuestion) => {
+    if (newQuestion) typeText(newQuestion)
   }
+)
+
+async function submit() {
+  await submitPrompt()
+  turn.value = 'ai'
+  prompt.value = ''
 }
 
 async function submitPrompt() {
@@ -147,18 +148,13 @@ async function submitPrompt() {
   if (response.decision_tree) treeData.value = response.decision_tree
   if (ai.winner) showWinner.value = true
 
-  icon.value = 'check'
   turn.value = 'human'
 }
 
 async function submitAnswer(answer) {
   await answerQuestion(answer)
   turn.value = 'human'
-  prompt.value = ''
-  icon.value = 'send'
 }
-
-const select = (image) => (selectedImage.value = image)
 
 onMounted(async () => {
   await ai.initialize()
@@ -167,7 +163,10 @@ onMounted(async () => {
 
 watch(
   () => webSocketStore.fastifyStarted,
-  (started) => !started && router.push('/interactive-start'),
+  (started) => {
+    console.log({ started, router })
+    !started && router.push('/interactive-start')
+  },
   {
     immediate: true
   }
@@ -181,6 +180,11 @@ watch(
     }
   }
 )
+
+const characterImage = computed(() => {
+  if (!gameStore.selectedCharacter) return null
+  return gameStore.allCharacters.find(({ name }) => name === gameStore.selectedCharacter)
+})
 </script>
 
 <style scoped lang="scss">
@@ -208,11 +212,6 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 2rem;
-}
-
-.tree {
-  position: absolute;
-  top: 55rem;
 }
 
 .backdrop {
@@ -264,4 +263,75 @@ watch(
 .fade-leave-to {
   opacity: 0;
 }
+
+.character-panel {
+  z-index: 3;
+  position: absolute;
+  top: 10rem;
+  left: 12%;
+  display: flex;
+  gap: 2rem;
+}
+
+.character-select {
+  width: 512px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 0;
+}
+
+.selected-character-container {
+  height: inherit;
+  border: 2px solid #1254e3;
+  display: flex;
+  justify-content: center;
+}
+
+.image-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 512px;
+  gap: 1.3rem;
+  transition: outline 200ms ease-in;
+  padding-bottom: 2rem;
+}
+
+.questions-container {
+  position: absolute;
+  top: 46rem;
+  left: 12%;
+  width: 512px;
+}
+
+.ai-question {
+  width: 50rem;
+  height: 76px;
+  background-color: #4393de50;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.decision-tree-container {
+  position: absolute;
+  width: 100%;
+  height: 60rem;
+  bottom: 0;
+  overflow: scroll;
+}
+
+// .tree {
+//   position: absolute;
+//   top: 58rem;
+// }
 </style>

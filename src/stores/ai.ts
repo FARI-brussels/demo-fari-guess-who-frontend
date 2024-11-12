@@ -66,6 +66,7 @@ export const useAIStore = defineStore('aiStore', () => {
       method: 'POST',
       body
     })
+
     const json = await res.json()
     const { decision_tree = null, remaining_characters = null } = json.response
 

@@ -1,40 +1,58 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import InteractiveStart from '../views/InteractiveStart.vue'
+import CharacterSelectView from '../views/CharacterSelectView.vue'
 import InfoStart from '../views/InfoStart.vue'
 import InteractiveView from '@/views/InteractiveView.vue'
 import InfoView from '@/views/InfoView.vue'
+import { useWebSocketStore } from '@/stores/ws'
 
 const routes = [
   {
     path: '/',
     name: '/',
-    redirect: '/interactive-start' // Default route redirects to the interactive start screen
+    redirect: '/interactive-start'
   },
   {
     name: 'interactive-start',
     path: '/interactive-start',
-    component: InteractiveStart // Screen with the "start" button
+    component: InteractiveStart
   },
   {
     name: 'info-start',
     path: '/info-start',
-    component: InfoStart // Screen without the "start" button
+    component: InfoStart
+  },
+  {
+    name: 'character-select',
+    path: '/character-select',
+    component: CharacterSelectView
   },
   {
     name: 'interactive',
     path: '/interactive',
-    component: InteractiveView // Interactive view after clicking "start"
+    component: InteractiveView
   },
   {
     name: 'info',
     path: '/info',
-    component: InfoView // Info view after clicking "start" on the interactive screen
+    component: InfoView
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to, from, next) => {
+  const webSocketStore = useWebSocketStore()
+  console.log({ to, from, started: webSocketStore.fastifyStarted })
+  if (to.name === 'interactive' && from.path === '/' && !webSocketStore.fastifyStarted) {
+    webSocketStore.sendFastify('stop')
+    next({ name: 'interactive-start' })
+  } else {
+    next()
+  }
 })
 
 export default router
