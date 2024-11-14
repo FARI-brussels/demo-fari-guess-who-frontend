@@ -15,7 +15,9 @@
       </ImageCard>
     </Suspense>
     <p class="hidden">{{ treeData }}</p>
-    <DecisionTree class="tree" v-if="treeData" :data="treeData" color="gray" />
+    <div class="decision-tree-container">
+      <DecisionTree class="tree" v-if="treeData" :data="treeData" color="gray" />
+    </div>
   </div>
 </template>
 
@@ -77,8 +79,17 @@ const treeData = computed(() => {
   top: 12rem;
 }
 
-.tree {
+// .tree {
+//   position: absolute;
+//   top: 42rem;
+// }
+
+.decision-tree-container {
   position: absolute;
-  top: 42rem;
+  width: 100%;
+  height: 80rem;
+  top: 45rem;
+  left: 2.5rem;
+  overflow: scroll;
 }
 </style>

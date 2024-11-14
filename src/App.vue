@@ -1,5 +1,11 @@
 <template>
-  <div id="app" class="bg-color-blue">
+  <div
+    id="app"
+    :class="{
+      'bg-color-blue': route.name?.includes('interactive') || route.name?.includes('character'),
+      'bg-color-gray': route.name?.includes('info')
+    }"
+  >
     <FDemoAppBar
       v-if="isInteractiveRoute"
       dense

@@ -2,11 +2,24 @@
   <div id="decision-tree-section">
     <svg width="1300" height="1000" ref="svgTree"></svg>
   </div>
+  <Transition>
+    <div v-if="showTooltip" ref="tooltip" class="tooltip bg-color-blue color-white p-md rounded">
+      <img v-if="tooltipInfoType === 'question'" src="@/assets/swirl.svg" />
+      <img v-if="tooltipInfoType === 'decision'" src="@/assets/decision.svg" />
+      <hr class="border-color-primary mb-md" />
+      <strong class="font-weight-black font-size-body"
+        >{{ tooltipText[tooltipInfoType]?.title }}
+      </strong>
+      <p>{{ tooltipText[tooltipInfoType]?.text }}</p>
+    </div>
+  </Transition>
+  <div class="backdrop" :class="{ 'backdrop-active': showTooltip }"></div>
 </template>
 
 <script setup lang="ts">
 import * as d3 from 'd3'
 import { onMounted, ref, nextTick, watchEffect } from 'vue'
+import { onClickOutside } from '@vueuse/core'
 
 type DecisionTreeName = string
 type DecisionTreeNames = DecisionTreeName[]
@@ -20,6 +33,19 @@ type DecisionTreeInput = [
     information_gain: number
   }
 ]
+
+const tooltipText = {
+  question: {
+    icon: 'swirl',
+    title: 'Hallucinations',
+    text: `AI systems, especially those based on large language models, are known for occasionally generating inaccurate or entirely fabricated information—a phenomenon commonly referred to as “hallucination.” This issue arises because these models are trained on vast datasets that include patterns, but they lack a genuine understanding of the real-world context or factual grounding. When given a prompt or asked a question, they may "fill in the gaps" by generating responses that sound plausible yet lack a basis in reality.`
+  },
+  decision: {
+    icon: 'decision',
+    title: 'Decisions',
+    text: `Decisions:  Decisions in large language models (LLMs) are based on probability and pattern recognition, not true understanding. When generating text, an LLM selects words based on likely sequences from its training data, mimicking human responses but without genuine judgment. This approach enables versatility but lacks the nuanced decision-making and contextual awareness that humans bring, which is essential in fields requiring precision and ethics.`
+  }
+}
 
 const characterImagePath = '/src/assets/images/' as const
 const yesIconPath = '/src/assets/yes.svg' as const
@@ -35,6 +61,11 @@ const informationGainRegex = /(?<=Information Gain: )(.*)$/
 const props = defineProps<{ data: JSON; color?: 'grey' | 'default' }>()
 
 const svgTree = ref<SVGSVGElement | null>(null)
+
+const tooltip = ref(null)
+const showTooltip = ref(false)
+const tooltipInfoType = ref<'question' | 'decision'>('question')
+onClickOutside(tooltip, () => (showTooltip.value = false))
 
 onMounted(() => createDecisionTree(props.data))
 
@@ -76,9 +107,16 @@ function createBaseTree(treeData) {
 
   g.attr('height', treeHeight)
 
-  const paths = getAllPaths(root)
-
-  const longestPath = getLongestPath(paths)
+  const nodesInRightAnswerPath = new Set()
+  root.descendants().forEach((node) => {
+    if (node.data.rightAnswer) {
+      let current = node
+      while (current) {
+        nodesInRightAnswerPath.add(current)
+        current = current.parent
+      }
+    }
+  })
 
   const link = g
     .selectAll('.link')
@@ -96,10 +134,8 @@ function createBaseTree(treeData) {
     )
     .style('fill', 'none')
     .style('stroke', props.color === 'gray' ? '#959595' : '#4393DE')
-    .style('stroke-width', (d) => (isInLongestPath(d, longestPath) && d.children ? '3px' : '1px'))
-    .style('stroke-dasharray', (d) =>
-      isInLongestPath(d, longestPath) && d.children ? null : '5,5'
-    )
+    .style('stroke-width', (d) => (nodesInRightAnswerPath.has(d) && d.children ? '3px' : '2px'))
+    .style('stroke-dasharray', (d) => (nodesInRightAnswerPath.has(d) ? null : '5,5'))
 
   const node = g
     .selectAll('.node')
@@ -121,7 +157,6 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
   }
 
   const question = data[index]
-
   const yesNames = names.filter((name) => question.yes.includes(name))
   const noNames = names.filter((name) => question.no.includes(name))
 
@@ -136,11 +171,13 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
       name: formattedQuestion,
       children: [
         {
-          name: `Answer: Yes (${yesNames.length})`,
+          rightAnswer: data[index].response === 'yes',
+          name: `Answer: yes (${yesNames.length})`,
           children: yesNames.length ? buildTree(data, yesNames, index + 1) : []
         },
         {
-          name: `Answer: No (${noNames.length})`,
+          rightAnswer: data[index].response === 'no',
+          name: `Answer: no (${noNames.length})`,
           children: noNames.length ? buildTree(data, noNames, index + 1) : []
         }
       ]
@@ -150,16 +187,19 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
 
 function organizeTreeData(data: DecisionTreeInput) {
   if (!data) return null
-  console.log({ data, type: typeof data })
   return {
     name: `Question: ${data[0].question} Length: (${data[0].yes.length + data[0].no.length}) Information Gain: (${data[0].information_gain.toFixed(3)})`,
     children: [
       {
-        name: `Answer: Yes (${data[0].yes.length})`,
+        rightAnswer: data[0].response === 'yes',
+        response: data[0].response,
+        name: `Answer: yes (${data[0].yes.length})`,
         children: buildTree(data, data[0].yes, 1)
       },
       {
-        name: `Answer: No (${data[0].no.length})`,
+        rightAnswer: data[0].response === 'no',
+        response: data[0].response,
+        name: `Answer: no (${data[0].no.length})`,
         children: buildTree(data, data[0].no, 1)
       }
     ]
@@ -167,13 +207,12 @@ function organizeTreeData(data: DecisionTreeInput) {
 }
 
 function renderIcons(node) {
-  console.log({ color: props.color })
   node
     .filter(
       (d) =>
         d.children &&
-        !d.data?.name?.includes('Answer: Yes') &&
-        !d.data?.name?.includes('Answer: No')
+        !d.data?.name?.includes('Answer: yes') &&
+        !d.data?.name?.includes('Answer: no')
     )
     .append('image')
     .attr(
@@ -184,6 +223,10 @@ function renderIcons(node) {
     .attr('height', 30)
     .attr('x', -15)
     .attr('y', -35)
+    .on('click', function (event, d) {
+      tooltipInfoType.value = 'question'
+      showTooltip.value = true
+    })
 
   node
     .append('text')
@@ -215,14 +258,18 @@ function renderIcons(node) {
     })
 
   node
-    .filter((d) => d.data?.name?.includes('Answer: Yes'))
+    .filter((d) => d.data?.name?.includes('Answer: yes'))
     .append('image')
     .attr('xlink:href', `${props.color === 'gray' ? yesIconGrayPath : yesIconPath}`)
     .attr('x', -12)
     .attr('y', -30)
+    .on('click', function (event, d) {
+      tooltipInfoType.value = 'decision'
+      showTooltip.value = true
+    })
 
   node
-    .filter((d) => d?.data?.name?.includes('Answer: Yes'))
+    .filter((d) => d?.data?.name?.includes('Answer: yes'))
     .append('text')
     .classed('decision_tree_value', true)
     .attr('x', 20)
@@ -235,14 +282,18 @@ function renderIcons(node) {
     })
 
   node
-    .filter((d) => d?.data?.name?.includes('Answer: No'))
+    .filter((d) => d?.data?.name?.includes('Answer: no'))
     .append('image')
     .attr('xlink:href', `${props.color === 'gray' ? noIconGrayPath : noIconPath}`)
     .attr('x', -12)
     .attr('y', -30)
+    .on('click', function (event, d) {
+      tooltipInfoType.value = 'decision'
+      showTooltip.value = true
+    })
 
   node
-    .filter((d) => d?.data?.name?.includes('Answer: No'))
+    .filter((d) => d?.data?.name?.includes('Answer: no'))
     .append('text')
     .classed('decision_tree_value', true)
     .attr('x', 20)
@@ -266,7 +317,6 @@ function renderImages(node) {
     if (!d.children) {
       if (!d.data || !d.data.name) return
       const name = d.data.name.split(' (')[0].toLowerCase()
-      console.log({ name })
       if (name.includes('answer')) return
 
       const imageUrl = `${characterImagePath}${name}.jpg`
@@ -301,32 +351,6 @@ function renderImages(node) {
         .attr('preserveAspectRatio', 'xMidYMid meet')
     }
   })
-}
-
-function getAllPaths(node, currentPath = []) {
-  const paths = []
-
-  currentPath.push(node)
-
-  if (!node.children || node.children.length === 0) {
-    paths.push(currentPath)
-  } else {
-    node.children.forEach((child) => {
-      paths.push(...getAllPaths(child, [...currentPath]))
-    })
-  }
-
-  return paths
-}
-
-function getLongestPath(paths) {
-  return paths.reduce((longest, current) => {
-    return current.length > longest.length ? current : longest
-  }, [])
-}
-
-function isInLongestPath(d, longestPath) {
-  return longestPath.includes(d)
 }
 </script>
 
@@ -384,5 +408,54 @@ svg {
 
 :deep(image) {
   border-radius: 50% !important;
+}
+
+.v-enter-active,
+.v-leave-active {
+  opacity: 1;
+  transition: all 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+  transform: translateY(50%);
+}
+
+.tooltip {
+  position: fixed;
+  top: 40rem;
+  display: flex;
+  flex-direction: column;
+  z-index: 4;
+  left: 14rem;
+  width: 40rem;
+  img {
+    width: 3rem;
+    margin-bottom: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.backdrop {
+  visibility: hidden;
+  opacity: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  backdrop-filter: blur(0);
+  z-index: 3;
+  transition: all 100ms;
+
+  &-active {
+    visibility: visible;
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    transition: all 200ms;
+  }
 }
 </style>

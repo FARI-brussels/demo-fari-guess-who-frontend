@@ -1,4 +1,5 @@
 import './assets/main.scss'
+
 import 'fari-component-library/style'
 
 import { createApp } from 'vue'

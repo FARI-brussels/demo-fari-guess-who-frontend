@@ -1,5 +1,5 @@
 <template>
-  <div class="wrapper">
+  <div class="wrapper bg-color-blue">
     <div class="character-panel">
       <Suspense>
         <div class="bg-color-white p-sm rounded-s character-select">
@@ -328,6 +328,7 @@ const characterImage = computed(() => {
   height: 60rem;
   bottom: 0;
   overflow: scroll;
+  left: 2.5rem;
 }
 
 // .tree {
