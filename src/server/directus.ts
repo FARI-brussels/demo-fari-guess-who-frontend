@@ -1,4 +1,4 @@
-import { createDirectus, rest, readItems, readItem } from '@directus/sdk'
+import { createDirectus, rest, readItems } from '@directus/sdk'
 
 const client = createDirectus('https://fari-cms.directus.app').with(rest())
 
