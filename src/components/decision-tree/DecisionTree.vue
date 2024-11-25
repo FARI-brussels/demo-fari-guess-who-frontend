@@ -276,7 +276,7 @@ function renderIcons(node) {
   node
     .filter((d) => d?.data?.name?.includes('Answer: yes'))
     .append('text')
-    .classed('decision_tree_value', true)
+    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
     .attr('x', 20)
     .attr('dy', -10)
     .text((d) => {
@@ -304,7 +304,7 @@ function renderIcons(node) {
   node
     .filter((d) => d?.data?.name?.includes('Answer: no'))
     .append('text')
-    .classed('decision_tree_value', true)
+    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
     .attr('x', 20)
     .attr('dy', -10)
     .text((d) => {
