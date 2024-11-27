@@ -50,6 +50,7 @@ const tooltipText = {
 const characterImagePath = '/src/assets/images/' as const
 const yesIconPath = '/src/assets/yes.svg' as const
 const noIconPath = '/src/assets/no.svg' as const
+const notificationIconPath = '/src/assets/notification_icon.svg' as const
 
 const yesIconGrayPath = '/src/assets/yes-gray.svg' as const
 const noIconGrayPath = '/src/assets/no-gray.svg' as const
@@ -102,7 +103,7 @@ function createBaseTree(treeData) {
 
   const g = svg.append('g').attr('transform', 'translate(0,40)')
   const tree = d3.tree().size([width - 300, treeHeight])
-  const defs = svg.append('svg:defs')
+  svg.append('svg:defs')
   tree(root)
 
   g.attr('height', treeHeight)
@@ -267,11 +268,15 @@ function renderIcons(node) {
       tooltipInfoType.value = 'decision'
       showTooltip.value = true
     })
+    .append('image')
+    .attr('xlink:href', `${notificationIconPath}`)
+    .attr('x', -12)
+    .attr('y', -30)
 
   node
     .filter((d) => d?.data?.name?.includes('Answer: yes'))
     .append('text')
-    .classed('decision_tree_value', true)
+    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
     .attr('x', 20)
     .attr('dy', -10)
     .text((d) => {
@@ -291,11 +296,15 @@ function renderIcons(node) {
       tooltipInfoType.value = 'decision'
       showTooltip.value = true
     })
+    .append('image')
+    .attr('xlink:href', `${notificationIconPath}`)
+    .attr('x', -12)
+    .attr('y', -30)
 
   node
     .filter((d) => d?.data?.name?.includes('Answer: no'))
     .append('text')
-    .classed('decision_tree_value', true)
+    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
     .attr('x', 20)
     .attr('dy', -10)
     .text((d) => {
@@ -310,6 +319,18 @@ function renderIcons(node) {
     .attr('x', 20)
     .attr('dy', 3)
     .style('text-anchor', 'start')
+
+  node
+    .filter((d) => {
+      console.log(d)
+      return d.children
+    })
+    .append('image')
+    .attr('xlink:href', notificationIconPath)
+    .attr('width', 15)
+    .attr('height', 15)
+    .attr('x', 5)
+    .attr('y', -35)
 }
 
 function renderImages(node) {
@@ -369,6 +390,7 @@ function renderImages(node) {
 svg {
   width: 100%;
   height: 100%;
+  margin-top: 1rem;
 }
 
 .node text {

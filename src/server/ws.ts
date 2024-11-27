@@ -1,8 +1,5 @@
-import type { FastifyRequest } from 'fastify'
-
 export function handleWebSocket(connection: any, _req: any) {
-  connection.socket.on('message', (message) => {
-    console.log('Received:', message.toString())
+  connection.socket.on('message', (_message) => {
     connection.socket.send(JSON.stringify({ action: 'start' }))
   })
 
