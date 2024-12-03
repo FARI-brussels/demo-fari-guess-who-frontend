@@ -15,13 +15,14 @@
           </div>
         </div>
       </Suspense>
-      <div class="selected-character-container rounded-s bg-color-blue p-sm">
+      <div class="selected-character-container rounded-s bg-color-blue color-blue-light p-sm">
         <PlayerImageLarge
           :name="gameStore.selectedCharacter"
           :path="characterImage.path"
           framed
           selected
         />
+        {{ characterImage.description_short }}
       </div>
     </div>
     <div class="questions-container">
@@ -46,16 +47,22 @@
         </div>
       </div>
       <TextInput
+        ref="textInput"
         v-model="prompt"
         @submit="submit"
         :loading="ai?.loading"
-        :disabled="turn === 'ai'"
+        :disabled="turn === 'ai' || ai.winner !== null"
         icon="check"
       />
     </div>
     <div class="interactive-container"></div>
     <div class="decision-tree-container">
-      <DecisionTree class="tree" v-if="treeData" :data="treeData" />
+      <DecisionTree
+        class="tree"
+        v-if="treeData"
+        :data="treeData"
+        :selected-character="gameStore.selectedCharacter || undefined"
+      />
     </div>
 
     <Transition>
@@ -73,7 +80,8 @@
           </div>
         </template>
         <template #action>
-          <FButton label="close" @click="showWinner = false" />
+          <FButton type="secondary" label="close" @click="showWinner = false" />
+          <FButton label="go back" @click="webSocketStore.sendFastify('stop')" />
         </template>
       </DialogContainer>
     </Transition>
@@ -93,7 +101,7 @@ import PlayerImage from '@/components/PlayerImage.vue'
 import TextInput from '@/components/TextInput.vue'
 import PlayerImageLarge from '@/components/PlayerImageLarge.vue'
 import DialogContainer from '@/components/DialogContainer.vue'
-import DecisionTree from '@/components/decision-tree/DecisionTree.vue'
+import DecisionTree from '@/components/decision-tree/DecisionTreeInteractive.vue'
 
 const router = useRouter()
 const webSocketStore = useWebSocketStore()
@@ -132,6 +140,17 @@ watch(
   (newQuestion) => {
     if (newQuestion) typeText(newQuestion)
   }
+)
+
+const textInput = ref(null)
+
+watch(
+  () => [turn.value, textInput.value],
+  ([newTurn, newTextinput]) => {
+    if (newTurn === 'human' && newTextinput) newTextinput.$el.querySelector('input').focus()
+    else if (newTurn === 'ai' && newTextinput) newTextinput.$el.querySelector('input').blur()
+  },
+  { immediate: true }
 )
 
 async function submit() {
@@ -185,6 +204,24 @@ const characterImage = computed(() => {
   if (!gameStore.selectedCharacter) return null
   return gameStore.allCharacters.find(({ name }) => name === gameStore.selectedCharacter)
 })
+
+function transformDecisions(data) {
+  console.log({ data })
+
+  return data.map(({ yes, no }) => {
+    const yesDecisions = Object.entries(yes).map(([name, justification]) => ({
+      name,
+      justification,
+      decision: 'yes'
+    }))
+
+    const noDecisions = Object.entries(no).map(([name, justification]) => ({
+      name,
+      justification,
+      decision: 'no'
+    }))
+  })
+}
 </script>
 
 <style scoped lang="scss">
@@ -285,7 +322,10 @@ const characterImage = computed(() => {
   height: inherit;
   border: 2px solid #1254e3;
   display: flex;
-  justify-content: center;
+  width: 260px;
+  gap: 1rem;
+  justify-content: space-evenly;
+  flex-direction: column;
 }
 
 .image-container {
