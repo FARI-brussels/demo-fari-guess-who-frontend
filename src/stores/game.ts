@@ -12,6 +12,7 @@ export const useGameStore = defineStore('gameStore', () => {
   const selectCharacter = (character: string) => (selectedCharacter.value = character)
 
   function filterCharacters(remaining: { justification: string; name: string }[]) {
+    console.log({ remaining })
     allCharacters.value.forEach((c) => {
       if (!remaining.find((r) => r.name === c.name)) c.remaining = false
     })

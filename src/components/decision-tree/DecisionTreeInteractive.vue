@@ -6,11 +6,28 @@
     <div v-if="showTooltip" ref="tooltip" class="tooltip bg-color-blue color-white p-md rounded">
       <img v-if="tooltipInfoType === 'question'" src="@/assets/swirl.svg" />
       <img v-if="tooltipInfoType === 'decision'" src="@/assets/decision.svg" />
+      <img
+        v-if="tooltipInfoType === 'justification'"
+        :src="tooltipJustificationImage"
+        class="portrait"
+      />
       <hr class="border-color-primary mb-md" />
-      <strong class="font-weight-black font-size-body"
+
+      <strong
+        v-if="tooltipInfoType === 'question' || tooltipInfoType === 'decision'"
+        class="font-weight-black font-size-body"
         >{{ tooltipText[tooltipInfoType]?.title }}
       </strong>
-      <p>{{ tooltipText[tooltipInfoType]?.text }}</p>
+
+      <p v-if="tooltipInfoType === 'question' || tooltipInfoType === 'decision'">
+        {{ tooltipText[tooltipInfoType]?.text }}
+      </p>
+
+      <strong v-if="tooltipInfoType === 'justification'" class="font-weight-black font-size-body"
+        >{{ tooltipJustificationTitle }}
+      </strong>
+
+      <p v-if="tooltipInfoType === 'justification'">{{ tooltipJustification }}</p>
     </div>
   </Transition>
   <div class="backdrop" :class="{ 'backdrop-active': showTooltip }"></div>
@@ -21,7 +38,7 @@ import * as d3 from 'd3'
 import { onMounted, ref, nextTick, watchEffect } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 
-type DecisionTreeName = string
+type DecisionTreeName = { name: string; justification: string }
 type DecisionTreeNames = DecisionTreeName[]
 
 type DecisionTreeInput = [
@@ -47,6 +64,10 @@ const tooltipText = {
   }
 }
 
+const tooltipJustification = ref('')
+const tooltipJustificationTitle = ref('')
+const tooltipJustificationImage = ref('')
+
 const characterImagePath = '/src/assets/images/' as const
 const yesIconPath = '/src/assets/yes.svg' as const
 const noIconPath = '/src/assets/no.svg' as const
@@ -69,7 +90,7 @@ const svgTree = ref<SVGSVGElement | null>(null)
 
 const tooltip = ref(null)
 const showTooltip = ref(false)
-const tooltipInfoType = ref<'question' | 'decision'>('question')
+const tooltipInfoType = ref<'question' | 'decision' | 'justification'>('question')
 onClickOutside(tooltip, () => (showTooltip.value = false))
 
 onMounted(() => createDecisionTree(props.data))
@@ -91,8 +112,9 @@ watchEffect(() => {
 function createDecisionTree(data: DecisionTreeInput) {
   if (typeof data === 'string') data = JSON.parse(data)
   const treeData = organizeTreeData(data)
+  console.log({ treeDataOrganized: treeData })
   const node = createBaseTree(treeData)
-  console.log({ treeData })
+  console.log({ data, node })
   renderIcons(node)
   renderImages(node)
 }
@@ -108,6 +130,7 @@ function createBaseTree(treeData) {
   const g = svg.append('g').attr('transform', 'translate(0,40)')
   const tree = d3.tree().size([width - 300, treeHeight])
   svg.append('svg:defs')
+  console.log({ treeData })
   tree(root)
 
   g.attr('height', treeHeight)
@@ -154,21 +177,20 @@ function createBaseTree(treeData) {
   return node
 }
 
-function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: number) {
-  console.log({ index, d: data.length, n: names.length })
-  if (index >= data.length || names.length === 0) {
-    return names.map((name) => ({
-      name: `${name} (1)`
+function buildTree(data: DecisionTreeInput, characters: DecisionTreeNames, index: number) {
+  if (index >= data.length || characters.length === 0) {
+    return characters.map(({ name, justification }) => ({
+      name: `${name}`,
+      justification
     }))
   }
-
   const question = data[index]
-  console.log({ question })
-  const yesNames = names.filter((name) => question.yes.includes(name))
-  const noNames = names.filter((name) => question.no.includes(name))
+
+  const yesNames = characters.filter((char) => question.yes.find((y) => y.name === char.name))
+  const noNames = characters.filter((char) => question.no.find((n) => n.name === char.name))
 
   if (yesNames.length === 0 && noNames.length === 0) {
-    return names.map((name) => ({ name: `${name} (leaf)` }))
+    return characters.map(({ name, justification }) => ({ name, justification }))
   }
 
   const formattedQuestion = `Question: ${question.question} Length: (${yesNames.length + noNames.length}) Information Gain: (${question.information_gain.toFixed(3)})`
@@ -194,7 +216,6 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
 
 function organizeTreeData(data: DecisionTreeInput) {
   if (!data) return null
-  console.log({ organizeTreeDataa: data })
   return {
     name: `Question: ${data[0].question} Length: (${data[0].yes.length + data[0].no.length}) Information Gain: (${data[0].information_gain.toFixed(3)})`,
     children: [
@@ -329,7 +350,6 @@ function renderIcons(node) {
 
   node
     .filter((d) => {
-      console.log(d)
       return d.children
     })
     .append('image')
@@ -346,7 +366,6 @@ function renderImages(node) {
       if (!d.data || !d.data.name) return
       const name = d.data.name.split(' (')[0].toLowerCase()
       if (name.includes('answer')) return
-
       const imageUrl = `${characterImagePath}${name}.jpg`
 
       const width = 40
@@ -377,6 +396,13 @@ function renderImages(node) {
         .attr('height', height)
         .attr('clip-path', `url(#${clipId})`)
         .attr('preserveAspectRatio', 'xMidYMid meet')
+        .on('click', function (event, { data: { name, justification } }: { [k: string]: string }) {
+          tooltipInfoType.value = 'justification'
+          tooltipJustificationTitle.value = name
+          tooltipJustification.value = justification
+          tooltipJustificationImage.value = imageUrl
+          showTooltip.value = true
+        })
     }
   })
 }
@@ -464,6 +490,10 @@ svg {
     margin-bottom: 1rem;
     margin-left: auto;
     margin-right: auto;
+  }
+  .portrait {
+    width: 180px;
+    border-radius: 1rem;
   }
 }
 

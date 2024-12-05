@@ -38,7 +38,7 @@ export const useAIStore = defineStore('aiStore', () => {
     })
 
     const json = await res.json()
-
+    console.log({ json })
     const { response, remaining_characters, robot_question, attribute, value, max_gain } = json
     robotAnswer.value = response
 

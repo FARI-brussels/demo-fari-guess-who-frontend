@@ -101,7 +101,7 @@ import PlayerImage from '@/components/PlayerImage.vue'
 import TextInput from '@/components/TextInput.vue'
 import PlayerImageLarge from '@/components/PlayerImageLarge.vue'
 import DialogContainer from '@/components/DialogContainer.vue'
-import DecisionTree from '@/components/decision-tree/DecisionTreeInteractive.vue'
+import DecisionTree from '@/components/decision-tree/DecisionTree2.vue'
 
 const router = useRouter()
 const webSocketStore = useWebSocketStore()
@@ -204,24 +204,6 @@ const characterImage = computed(() => {
   if (!gameStore.selectedCharacter) return null
   return gameStore.allCharacters.find(({ name }) => name === gameStore.selectedCharacter)
 })
-
-function transformDecisions(data) {
-  console.log({ data })
-
-  return data.map(({ yes, no }) => {
-    const yesDecisions = Object.entries(yes).map(([name, justification]) => ({
-      name,
-      justification,
-      decision: 'yes'
-    }))
-
-    const noDecisions = Object.entries(no).map(([name, justification]) => ({
-      name,
-      justification,
-      decision: 'no'
-    }))
-  })
-}
 </script>
 
 <style scoped lang="scss">

@@ -4,13 +4,16 @@
   </div>
   <Transition>
     <div v-if="showTooltip" ref="tooltip" class="tooltip bg-color-blue color-white p-md rounded">
-      <img v-if="tooltipInfoType === 'question'" src="@/assets/swirl.svg" />
-      <img v-if="tooltipInfoType === 'decision'" src="@/assets/decision.svg" />
+      <img
+        :src="tooltipContent.imagePath"
+        :class="{ portrait: tooltipInfoType === 'justification' }"
+      />
       <hr class="border-color-primary mb-md" />
-      <strong class="font-weight-black font-size-body"
-        >{{ tooltipText[tooltipInfoType]?.title }}
-      </strong>
-      <p>{{ tooltipText[tooltipInfoType]?.text }}</p>
+
+      <div>
+        <strong class="font-weight-black font-size-body">{{ tooltipContent.title }} </strong>
+        <p>{{ tooltipContent.text }}</p>
+      </div>
     </div>
   </Transition>
   <div class="backdrop" :class="{ 'backdrop-active': showTooltip }"></div>
@@ -18,10 +21,10 @@
 
 <script setup lang="ts">
 import * as d3 from 'd3'
-import { onMounted, ref, nextTick, watchEffect } from 'vue'
+import { onMounted, ref, nextTick, watchEffect, computed, reactive } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 
-type DecisionTreeName = string
+type DecisionTreeName = { name: string; justification: string }
 type DecisionTreeNames = DecisionTreeName[]
 
 type DecisionTreeInput = [
@@ -34,42 +37,67 @@ type DecisionTreeInput = [
   }
 ]
 
-const tooltipText = {
-  question: {
-    icon: 'swirl',
-    title: 'Hallucinations',
-    text: `AI systems, especially those based on large language models, are known for occasionally generating inaccurate or entirely fabricated information—a phenomenon commonly referred to as “hallucination.” This issue arises because these models are trained on vast datasets that include patterns, but they lack a genuine understanding of the real-world context or factual grounding. When given a prompt or asked a question, they may "fill in the gaps" by generating responses that sound plausible yet lack a basis in reality.`
-  },
-  decision: {
-    icon: 'decision',
-    title: 'Decisions',
-    text: `Decisions:  Decisions in large language models (LLMs) are based on probability and pattern recognition, not true understanding. When generating text, an LLM selects words based on likely sequences from its training data, mimicking human responses but without genuine judgment. This approach enables versatility but lacks the nuanced decision-making and contextual awareness that humans bring, which is essential in fields requiring precision and ethics.`
-  }
-}
-
-const characterImagePath = '/src/assets/images/' as const
-const yesIconPath = '/src/assets/yes.svg' as const
-const noIconPath = '/src/assets/no.svg' as const
-const notificationIconPath = '/src/assets/notification_icon.svg' as const
-
-const yesIconGrayPath = '/src/assets/yes-gray.svg' as const
-const noIconGrayPath = '/src/assets/no-gray.svg' as const
-
-const questionRegex = /[^Question:](\s*(.*?)\s*)(?= Length)/
-const lengthRegex = /(?<=Length:\s*)(.*?)\s*(?=Information Gain)/
-const informationGainRegex = /(?<=Information Gain: )(.*)$/
-
 const props = defineProps<{
   data: JSON
   color?: 'grey' | 'default'
   selectedCharacter?: string
 }>()
 
-const svgTree = ref<SVGSVGElement | null>(null)
+const justificationText = ref('')
+const justificationTitle = ref('')
+const justificationImage = ref('')
 
 const tooltip = ref(null)
 const showTooltip = ref(false)
-const tooltipInfoType = ref<'question' | 'decision'>('question')
+const tooltipInfoType = ref<'question' | 'decision' | 'justification'>('question')
+
+const tooltipContent = computed(() => {
+  if (tooltipInfoType.value === 'question')
+    return {
+      type: 'question',
+      imagePath: '/src/assets/swirl.svg',
+      title: 'Hallucinations',
+      text: `AI systems, especially those based on large language models, are known for occasionally generating inaccurate or entirely fabricated information—a phenomenon commonly referred to as “hallucination.” This issue arises because these models are trained on vast datasets that include patterns, but they lack a genuine understanding of the real-world context or factual grounding. When given a prompt or asked a question, they may "fill in the gaps" by generating responses that sound plausible yet lack a basis in reality.`
+    }
+  if (tooltipInfoType.value === 'decision')
+    return {
+      type: 'decision',
+      imagePath: '/src/assets/decision.svg',
+      title: 'Decisions',
+      text: `Decisions:  Decisions in large language models (LLMs) are based on probability and pattern recognition, not true understanding. When generating text, an LLM selects words based on likely sequences from its training data, mimicking human responses but without genuine judgment. This approach enables versatility but lacks the nuanced decision-making and contextual awareness that humans bring, which is essential in fields requiring precision and ethics.`
+    }
+  if (tooltipInfoType.value === 'justification')
+    return {
+      type: 'justification',
+      imagePath: justificationImage.value,
+      title: justificationTitle.value,
+      text: justificationText.value
+    }
+
+  return {
+    type: null,
+    imagePath: '',
+    title: '',
+    text: ''
+  }
+})
+
+const characterImagePath = '/src/assets/images/' as const
+const yesIconPath = '/src/assets/yes.svg' as const
+const noIconPath = '/src/assets/no.svg' as const
+const yesIconGrayPath = '/src/assets/yes-gray.svg' as const
+const noIconGrayPath = '/src/assets/no-gray.svg' as const
+
+const notificationIconPath = '/src/assets/notification_icon.svg' as const
+
+const questionRegex = /[^Question:](\s*(.*?)\s*)(?= Length)/
+const lengthRegex = /(?<=Length:\s*)(.*?)\s*(?=Information Gain)/
+const informationGainRegex = /(?<=Information Gain: )(.*)$/
+
+const svgTree = ref<SVGSVGElement | null>(null)
+
+const characterInfos = reactive([])
+
 onClickOutside(tooltip, () => (showTooltip.value = false))
 
 onMounted(() => createDecisionTree(props.data))
@@ -90,9 +118,11 @@ watchEffect(() => {
 
 function createDecisionTree(data: DecisionTreeInput) {
   if (typeof data === 'string') data = JSON.parse(data)
+
+  console.log({ data })
   const treeData = organizeTreeData(data)
   const node = createBaseTree(treeData)
-  console.log({ treeData })
+  console.log({ node })
   renderIcons(node)
   renderImages(node)
 }
@@ -123,8 +153,7 @@ function createBaseTree(treeData) {
     }
   })
 
-  const link = g
-    .selectAll('.link')
+  g.selectAll('.link')
     .data(root.descendants().slice(1))
     .enter()
     .append('path')
@@ -155,23 +184,18 @@ function createBaseTree(treeData) {
 }
 
 function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: number) {
-  console.log({ index, d: data.length, n: names.length })
-  if (index >= data.length || names.length === 0) {
-    return names.map((name) => ({
-      name: `${name} (1)`
-    }))
-  }
+  if (index >= data.length || !names.length)
+    return names.map(({ name, justification }) => ({ name, justification }))
 
-  const question = data[index]
-  console.log({ question })
-  const yesNames = names.filter((name) => question.yes.includes(name))
-  const noNames = names.filter((name) => question.no.includes(name))
+  const { question, yes, no, information_gain } = data[index]
 
-  if (yesNames.length === 0 && noNames.length === 0) {
-    return names.map((name) => ({ name: `${name} (leaf)` }))
-  }
+  const yesNames = names.filter(({ name }) => yes.find((e) => e.name === name))
+  const noNames = names.filter(({ name }) => no.find((e) => e.name === name))
 
-  const formattedQuestion = `Question: ${question.question} Length: (${yesNames.length + noNames.length}) Information Gain: (${question.information_gain.toFixed(3)})`
+  if (yesNames.length === 0 && noNames.length === 0)
+    return names.map(({ name, justification }) => ({ name, justification }))
+
+  const formattedQuestion = `Question: ${question} Length: (${yes.length + no.length}) Information Gain: (${information_gain.toFixed(3)})`
 
   return [
     {
@@ -179,13 +203,13 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
       children: [
         {
           rightAnswer: data[index].response === 'yes',
-          name: `Answer: yes (${yesNames.length})`,
-          children: yesNames.length ? buildTree(data, yesNames, index + 1) : []
+          name: `Answer: yes (${yes.length})`,
+          children: yes.length ? buildTree(data, yesNames, index + 1) : []
         },
         {
           rightAnswer: data[index].response === 'no',
-          name: `Answer: no (${noNames.length})`,
-          children: noNames.length ? buildTree(data, noNames, index + 1) : []
+          name: `Answer: no (${no.length})`,
+          children: no.length ? buildTree(data, noNames, index + 1) : []
         }
       ]
     }
@@ -194,7 +218,16 @@ function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: num
 
 function organizeTreeData(data: DecisionTreeInput) {
   if (!data) return null
-  console.log({ organizeTreeDataa: data })
+
+  data.forEach(({ yes, no }) =>
+    [...yes, ...no].forEach((c) => {
+      const index = characterInfos.findIndex((char) => char.name === c.name)
+
+      if (index !== -1) characterInfos[index] = c
+      else characterInfos.push(c)
+    })
+  )
+
   return {
     name: `Question: ${data[0].question} Length: (${data[0].yes.length + data[0].no.length}) Information Gain: (${data[0].information_gain.toFixed(3)})`,
     children: [
@@ -225,7 +258,7 @@ function renderIcons(node) {
     .append('image')
     .attr(
       'xlink:href',
-      props.color === 'gray' ? '/src/assets/question-gray.svg' : '/src/assets/question.svg'
+      props.color === 'grey' ? '/src/assets/question-gray.svg' : '/src/assets/question.svg'
     )
     .attr('width', 30)
     .attr('height', 30)
@@ -239,7 +272,7 @@ function renderIcons(node) {
   node
     .append('text')
     .classed(
-      `${props.color === 'gray' ? 'decision_tree_text-gray decision_tree_text--question-gray' : 'decision_tree_text decision_tree_text--question'}`,
+      `${props.color === 'grey' ? 'decision_tree_text-gray decision_tree_text--question-gray' : 'decision_tree_text decision_tree_text--question'}`,
       true
     )
     .attr('x', -25)
@@ -328,10 +361,7 @@ function renderIcons(node) {
     .style('text-anchor', 'start')
 
   node
-    .filter((d) => {
-      console.log(d)
-      return d.children
-    })
+    .filter((d) => d.children)
     .append('image')
     .attr('xlink:href', notificationIconPath)
     .attr('width', 15)
@@ -341,12 +371,11 @@ function renderIcons(node) {
 }
 
 function renderImages(node) {
-  node.each(function (d) {
+  node.each(function (d: { children: any; data: { name: string } }) {
     if (!d.children) {
       if (!d.data || !d.data.name) return
       const name = d.data.name.split(' (')[0].toLowerCase()
       if (name.includes('answer')) return
-
       const imageUrl = `${characterImagePath}${name}.jpg`
 
       const width = 40
@@ -377,8 +406,28 @@ function renderImages(node) {
         .attr('height', height)
         .attr('clip-path', `url(#${clipId})`)
         .attr('preserveAspectRatio', 'xMidYMid meet')
+        .on(
+          'click',
+          function (
+            _event: any,
+            { data: { name, justification } }: { data: { [k: string]: string } }
+          ) {
+            showJustification({ name, imageUrl })
+          }
+        )
     }
   })
+}
+
+function showJustification({ name, imageUrl }) {
+  tooltipInfoType.value = 'justification'
+  const character = characterInfos.find((c) => c.name === name)
+  if (!character) return
+
+  justificationText.value = character.justification
+  justificationTitle.value = character.name
+  justificationImage.value = imageUrl
+  showTooltip.value = true
 }
 </script>
 
@@ -464,6 +513,10 @@ svg {
     margin-bottom: 1rem;
     margin-left: auto;
     margin-right: auto;
+  }
+  .portrait {
+    width: 180px;
+    border-radius: 1rem;
   }
 }
 

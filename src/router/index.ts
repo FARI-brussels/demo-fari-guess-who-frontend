@@ -66,15 +66,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const webSocketStore = useWebSocketStore()
 
-  if (monitoredRoutes.includes(to.name)) {
-    resetInactivityTimer()
-    setupInactivityDetection()
-  } else {
-    if (inactivityTimer) clearTimeout(inactivityTimer)
-    document.removeEventListener('mousemove', resetInactivityTimer)
-    document.removeEventListener('click', resetInactivityTimer)
-    document.removeEventListener('keydown', resetInactivityTimer)
-  }
+  // if (monitoredRoutes.includes(to.name)) {
+  //   resetInactivityTimer()
+  //   setupInactivityDetection()
+  // } else {
+  //   if (inactivityTimer) clearTimeout(inactivityTimer)
+  //   document.removeEventListener('mousemove', resetInactivityTimer)
+  //   document.removeEventListener('click', resetInactivityTimer)
+  //   document.removeEventListener('keydown', resetInactivityTimer)
+  // }
 
   if (to.name === 'interactive' && from.path === '/' && !webSocketStore.fastifyStarted) {
     webSocketStore.sendFastify('stop')
