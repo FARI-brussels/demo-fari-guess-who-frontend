@@ -57,12 +57,7 @@
     </div>
     <div class="interactive-container"></div>
     <div class="decision-tree-container">
-      <DecisionTree
-        class="tree"
-        v-if="treeData"
-        :data="treeData"
-        :selected-character="gameStore.selectedCharacter || undefined"
-      />
+      <DecisionTree v-if="treeData" class="tree" :data="treeData" />
     </div>
 
     <Transition>
@@ -101,7 +96,7 @@ import PlayerImage from '@/components/PlayerImage.vue'
 import TextInput from '@/components/TextInput.vue'
 import PlayerImageLarge from '@/components/PlayerImageLarge.vue'
 import DialogContainer from '@/components/DialogContainer.vue'
-import DecisionTree from '@/components/decision-tree/DecisionTree2.vue'
+import DecisionTree from '@/components/decision-tree/DecisionTree.vue'
 
 const router = useRouter()
 const webSocketStore = useWebSocketStore()
@@ -352,9 +347,4 @@ const characterImage = computed(() => {
   overflow: scroll;
   left: 2.5rem;
 }
-
-// .tree {
-//   position: absolute;
-//   top: 58rem;
-// }
 </style>
