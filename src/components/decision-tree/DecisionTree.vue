@@ -2,71 +2,80 @@
   <div id="decision-tree-section">
     <svg width="1300" height="1000" ref="svgTree"></svg>
   </div>
+
   <Transition>
-    <div v-if="showTooltip" ref="tooltip" class="tooltip bg-color-blue color-white p-md rounded">
-      <img v-if="tooltipInfoType === 'question'" src="@/assets/swirl.svg" />
-      <img v-if="tooltipInfoType === 'decision'" src="@/assets/decision.svg" />
-      <hr class="border-color-primary mb-md" />
-      <strong class="font-weight-black font-size-body"
-        >{{ tooltipText[tooltipInfoType]?.title }}
-      </strong>
-      <p>{{ tooltipText[tooltipInfoType]?.text }}</p>
-    </div>
+    <DecisionTreeDialog
+      v-if="showdialog"
+      ref="dialog"
+      :imgSrc="dialogContent.imagePath"
+      :thumbnail="dialogInfoType !== 'justification'"
+      :title="dialogContent.title"
+      :content="dialogContent.text"
+    />
   </Transition>
-  <div class="backdrop" :class="{ 'backdrop-active': showTooltip }"></div>
+  <div class="backdrop" :class="{ 'backdrop-active': showdialog }"></div>
 </template>
 
 <script setup lang="ts">
 import * as d3 from 'd3'
-import { onMounted, ref, nextTick, watchEffect } from 'vue'
+import { onMounted, ref, nextTick, watchEffect, computed, reactive } from 'vue'
 import { onClickOutside } from '@vueuse/core'
+import type { DecisionTreeCharacter, DecisionTreeInput } from './types'
+import { organizeTreeData } from './organizeTree'
+import { createBaseTree } from './base'
+import { renderIcons, renderImages } from './render'
+import DecisionTreeDialog from '@/components/DecisionTreeDialog.vue'
 
-type DecisionTreeName = string
-type DecisionTreeNames = DecisionTreeName[]
+const props = defineProps<{
+  data: JSON
+  color?: 'gray' | 'default'
+  selectedCharacter?: string
+}>()
 
-type DecisionTreeInput = [
-  {
-    no: DecisionTreeNames[]
-    yes: DecisionTreeNames[]
-    question: string
-    response: 'yes' | 'no'
-    information_gain: number
+const justificationText = ref('')
+const justificationTitle = ref('')
+const justificationImage = ref('')
+
+const dialog = ref(null)
+const showdialog = ref(false)
+const dialogInfoType = ref<'question' | 'decision' | 'justification'>('question')
+
+const dialogContent = computed(() => {
+  if (dialogInfoType.value === 'question')
+    return {
+      type: 'question',
+      imagePath: '/src/assets/swirl.svg',
+      title: 'Hallucinations',
+      text: `AI systems, especially those based on large language models, are known for occasionally generating inaccurate or entirely fabricated information—a phenomenon commonly referred to as “hallucination.” This issue arises because these models are trained on vast datasets that include patterns, but they lack a genuine understanding of the real-world context or factual grounding. When given a prompt or asked a question, they may "fill in the gaps" by generating responses that sound plausible yet lack a basis in reality.`
+    }
+  if (dialogInfoType.value === 'decision')
+    return {
+      type: 'decision',
+      imagePath: '/src/assets/decision.svg',
+      title: 'Decisions',
+      text: `Decisions:  Decisions in large language models (LLMs) are based on probability and pattern recognition, not true understanding. When generating text, an LLM selects words based on likely sequences from its training data, mimicking human responses but without genuine judgment. This approach enables versatility but lacks the nuanced decision-making and contextual awareness that humans bring, which is essential in fields requiring precision and ethics.`
+    }
+  if (dialogInfoType.value === 'justification')
+    return {
+      type: 'justification',
+      imagePath: justificationImage.value,
+      title: justificationTitle.value,
+      text: justificationText.value
+    }
+
+  return {
+    type: null,
+    imagePath: '',
+    title: '',
+    text: ''
   }
-]
-
-const tooltipText = {
-  question: {
-    icon: 'swirl',
-    title: 'Hallucinations',
-    text: `AI systems, especially those based on large language models, are known for occasionally generating inaccurate or entirely fabricated information—a phenomenon commonly referred to as “hallucination.” This issue arises because these models are trained on vast datasets that include patterns, but they lack a genuine understanding of the real-world context or factual grounding. When given a prompt or asked a question, they may "fill in the gaps" by generating responses that sound plausible yet lack a basis in reality.`
-  },
-  decision: {
-    icon: 'decision',
-    title: 'Decisions',
-    text: `Decisions:  Decisions in large language models (LLMs) are based on probability and pattern recognition, not true understanding. When generating text, an LLM selects words based on likely sequences from its training data, mimicking human responses but without genuine judgment. This approach enables versatility but lacks the nuanced decision-making and contextual awareness that humans bring, which is essential in fields requiring precision and ethics.`
-  }
-}
-
-const characterImagePath = '/src/assets/images/' as const
-const yesIconPath = '/src/assets/yes.svg' as const
-const noIconPath = '/src/assets/no.svg' as const
-const notificationIconPath = '/src/assets/notification_icon.svg' as const
-
-const yesIconGrayPath = '/src/assets/yes-gray.svg' as const
-const noIconGrayPath = '/src/assets/no-gray.svg' as const
-
-const questionRegex = /[^Question:](\s*(.*?)\s*)(?= Length)/
-const lengthRegex = /(?<=Length:\s*)(.*?)\s*(?=Information Gain)/
-const informationGainRegex = /(?<=Information Gain: )(.*)$/
-
-const props = defineProps<{ data: JSON; color?: 'grey' | 'default' }>()
+})
 
 const svgTree = ref<SVGSVGElement | null>(null)
 
-const tooltip = ref(null)
-const showTooltip = ref(false)
-const tooltipInfoType = ref<'question' | 'decision'>('question')
-onClickOutside(tooltip, () => (showTooltip.value = false))
+const characterInfos = reactive<DecisionTreeCharacter[]>([])
+
+onClickOutside(dialog, () => (showdialog.value = false))
 
 onMounted(() => createDecisionTree(props.data))
 
@@ -84,294 +93,47 @@ watchEffect(() => {
   }
 })
 
+const handleCharacters = (data: DecisionTreeInput) => {
+  data.forEach(({ yes, no }) =>
+    [...yes, ...no].forEach((c) => {
+      const index = characterInfos.findIndex((char) => char.name === c.name)
+
+      if (index !== -1) characterInfos[index] = c
+      else characterInfos.push(c)
+    })
+  )
+}
+
+function handledialog(type: 'question' | 'decision') {
+  dialogInfoType.value = type
+  showdialog.value = true
+}
+
+function showJustification({ name, imageUrl }: { name: string; imageUrl: string }) {
+  dialogInfoType.value = 'justification'
+  const character = characterInfos.find((c) => c.name === name)
+  if (!character) return
+
+  justificationText.value = character.justification
+  justificationTitle.value = character.name
+  justificationImage.value = imageUrl
+  showdialog.value = true
+}
+
 function createDecisionTree(data: DecisionTreeInput) {
+  if (!data || !svgTree.value) return
   if (typeof data === 'string') data = JSON.parse(data)
-  const treeData = organizeTreeData(data)
-  const node = createBaseTree(treeData)
 
-  renderIcons(node)
-  renderImages(node)
-}
-
-function createBaseTree(treeData) {
-  const svg = d3.select(svgTree.value)
-
-  const width = +svg.attr('width')
-  const root = d3.hierarchy(treeData)
-
-  const treeHeight = (root.height + 1) * 100
-
-  const g = svg.append('g').attr('transform', 'translate(0,40)')
-  const tree = d3.tree().size([width - 300, treeHeight])
-  svg.append('svg:defs')
-  tree(root)
-
-  g.attr('height', treeHeight)
-
-  const nodesInRightAnswerPath = new Set()
-  root.descendants().forEach((node) => {
-    if (node.data.rightAnswer) {
-      let current = node
-      while (current) {
-        nodesInRightAnswerPath.add(current)
-        current = current.parent
-      }
-    }
+  const treeData = organizeTreeData(data, handleCharacters)
+  const node = createBaseTree({
+    treeData,
+    svgTree: svgTree.value,
+    color: props.color,
+    selectedCharacter: props.selectedCharacter
   })
 
-  const link = g
-    .selectAll('.link')
-    .data(root.descendants().slice(1))
-    .enter()
-    .append('path')
-    .attr('class', 'link')
-    .attr(
-      'd',
-      (d) => `
-        M${d.x},${d.y}
-        L${d.x},${(d.y + d.parent.y) / 2}
-        L${d.parent.x},${d.parent.y}
-      `
-    )
-    .style('fill', 'none')
-    .style('stroke', props.color === 'gray' ? '#959595' : '#4393DE')
-    .style('stroke-width', (d) => (nodesInRightAnswerPath.has(d) && d.children ? '3px' : '2px'))
-    .style('stroke-dasharray', (d) => (nodesInRightAnswerPath.has(d) ? null : '5,5'))
-
-  const node = g
-    .selectAll('.node')
-    .data(root.descendants())
-    .enter()
-    .append('g')
-    .attr('class', (d) => 'node' + (d.children ? ' node--internal' : ' node--leaf'))
-
-  node.attr('transform', (d) => `translate(${d.x},${d.y})`)
-
-  return node
-}
-
-function buildTree(data: DecisionTreeInput, names: DecisionTreeNames, index: number) {
-  if (index >= data.length || names.length === 0) {
-    return names.map((name) => ({
-      name: `${name} (1)`
-    }))
-  }
-
-  const question = data[index]
-  const yesNames = names.filter((name) => question.yes.includes(name))
-  const noNames = names.filter((name) => question.no.includes(name))
-
-  if (yesNames.length === 0 && noNames.length === 0) {
-    return names.map((name) => ({ name: `${name} (leaf)` }))
-  }
-
-  const formattedQuestion = `Question: ${question.question} Length: (${yesNames.length + noNames.length}) Information Gain: (${question.information_gain.toFixed(3)})`
-
-  return [
-    {
-      name: formattedQuestion,
-      children: [
-        {
-          rightAnswer: data[index].response === 'yes',
-          name: `Answer: yes (${yesNames.length})`,
-          children: yesNames.length ? buildTree(data, yesNames, index + 1) : []
-        },
-        {
-          rightAnswer: data[index].response === 'no',
-          name: `Answer: no (${noNames.length})`,
-          children: noNames.length ? buildTree(data, noNames, index + 1) : []
-        }
-      ]
-    }
-  ]
-}
-
-function organizeTreeData(data: DecisionTreeInput) {
-  if (!data) return null
-  return {
-    name: `Question: ${data[0].question} Length: (${data[0].yes.length + data[0].no.length}) Information Gain: (${data[0].information_gain.toFixed(3)})`,
-    children: [
-      {
-        rightAnswer: data[0].response === 'yes',
-        response: data[0].response,
-        name: `Answer: yes (${data[0].yes.length})`,
-        children: buildTree(data, data[0].yes, 1)
-      },
-      {
-        rightAnswer: data[0].response === 'no',
-        response: data[0].response,
-        name: `Answer: no (${data[0].no.length})`,
-        children: buildTree(data, data[0].no, 1)
-      }
-    ]
-  }
-}
-
-function renderIcons(node) {
-  node
-    .filter(
-      (d) =>
-        d.children &&
-        !d.data?.name?.includes('Answer: yes') &&
-        !d.data?.name?.includes('Answer: no')
-    )
-    .append('image')
-    .attr(
-      'xlink:href',
-      props.color === 'gray' ? '/src/assets/question-gray.svg' : '/src/assets/question.svg'
-    )
-    .attr('width', 30)
-    .attr('height', 30)
-    .attr('x', -15)
-    .attr('y', -35)
-    .on('click', function (event, d) {
-      tooltipInfoType.value = 'question'
-      showTooltip.value = true
-    })
-
-  node
-    .append('text')
-    .classed(
-      `${props.color === 'gray' ? 'decision_tree_text-gray decision_tree_text--question-gray' : 'decision_tree_text decision_tree_text--question'}`,
-      true
-    )
-    .attr('x', -25)
-    .attr('dy', -15)
-    .style('text-anchor', 'end')
-    .text((d) => {
-      const { name } = d.data
-      if (!name) return
-      const question = name.match(questionRegex)
-      if (question) return question[0]
-    })
-
-  node
-    .append('text')
-    .classed(`${props.color === 'gray' ? 'decision_tree_text-gray' : 'decision_tree_text'}`, true)
-    .attr('x', 30)
-    .attr('dy', -15)
-    .text((d) => {
-      const { name } = d.data
-      if (!name) return
-      const length = name.match(lengthRegex)
-      const infoGain = name.match(informationGainRegex)
-      if (length && infoGain) return length[0] + infoGain[0]
-    })
-
-  node
-    .filter((d) => d.data?.name?.includes('Answer: yes'))
-    .append('image')
-    .attr('xlink:href', `${props.color === 'gray' ? yesIconGrayPath : yesIconPath}`)
-    .attr('x', -12)
-    .attr('y', -30)
-    .on('click', function (event, d) {
-      tooltipInfoType.value = 'decision'
-      showTooltip.value = true
-    })
-    .append('image')
-    .attr('xlink:href', `${notificationIconPath}`)
-    .attr('x', -12)
-    .attr('y', -30)
-
-  node
-    .filter((d) => d?.data?.name?.includes('Answer: yes'))
-    .append('text')
-    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
-    .attr('x', 20)
-    .attr('dy', -10)
-    .text((d) => {
-      const { name } = d.data
-      if (!name) return
-      const value = name.match(/\(.\)/)
-      if (value) return value[0]
-    })
-
-  node
-    .filter((d) => d?.data?.name?.includes('Answer: no'))
-    .append('image')
-    .attr('xlink:href', `${props.color === 'gray' ? noIconGrayPath : noIconPath}`)
-    .attr('x', -12)
-    .attr('y', -30)
-    .on('click', function (event, d) {
-      tooltipInfoType.value = 'decision'
-      showTooltip.value = true
-    })
-    .append('image')
-    .attr('xlink:href', `${notificationIconPath}`)
-    .attr('x', -12)
-    .attr('y', -30)
-
-  node
-    .filter((d) => d?.data?.name?.includes('Answer: no'))
-    .append('text')
-    .classed(props.color === 'gray' ? 'decision_tree_value-gray' : 'decision_tree_value', true)
-    .attr('x', 20)
-    .attr('dy', -10)
-    .text((d) => {
-      const { name } = d.data
-      const value = name.match(/\(.\)/)
-      if (value) return value[0]
-    })
-
-  node
-    .append('text')
-    .classed(`${props.color === 'gray' ? 'decision_tree_text-gray' : 'decision_tree_text'}`, true)
-    .attr('x', 20)
-    .attr('dy', 3)
-    .style('text-anchor', 'start')
-
-  node
-    .filter((d) => {
-      console.log(d)
-      return d.children
-    })
-    .append('image')
-    .attr('xlink:href', notificationIconPath)
-    .attr('width', 15)
-    .attr('height', 15)
-    .attr('x', 5)
-    .attr('y', -35)
-}
-
-function renderImages(node) {
-  node.each(function (d) {
-    if (!d.children) {
-      if (!d.data || !d.data.name) return
-      const name = d.data.name.split(' (')[0].toLowerCase()
-      if (name.includes('answer')) return
-
-      const imageUrl = `${characterImagePath}${name}.jpg`
-
-      const width = 40
-      const height = 40
-      const cornerRadius = 8
-
-      const clipId = `clip-${name}`
-
-      const svgDefs = d3.select(svgTree.value).select('defs')
-      if (svgDefs.empty()) {
-        svgDefs.append('defs')
-      }
-      svgDefs
-        .append('clipPath')
-        .attr('id', clipId)
-        .append('rect')
-        .attr('rx', cornerRadius)
-        .attr('ry', cornerRadius)
-        .attr('width', width)
-        .attr('height', height)
-
-      const group = d3.select(this).append('g').attr('transform', 'translate(-20, 0)')
-
-      group
-        .append('image')
-        .attr('xlink:href', imageUrl)
-        .attr('width', width)
-        .attr('height', height)
-        .attr('clip-path', `url(#${clipId})`)
-        .attr('preserveAspectRatio', 'xMidYMid meet')
-    }
-  })
+  renderIcons({ node, color: props.color, handler: handledialog })
+  renderImages({ node, svgTree: svgTree.value, handler: showJustification })
 }
 </script>
 
@@ -442,22 +204,6 @@ svg {
 .v-leave-to {
   opacity: 0;
   transform: translateY(50%);
-}
-
-.tooltip {
-  position: fixed;
-  top: 40rem;
-  display: flex;
-  flex-direction: column;
-  z-index: 4;
-  left: 14rem;
-  width: 40rem;
-  img {
-    width: 3rem;
-    margin-bottom: 1rem;
-    margin-left: auto;
-    margin-right: auto;
-  }
 }
 
 .backdrop {

@@ -5,7 +5,7 @@ import { useWebSocketStore } from './ws'
 import { ref } from 'vue'
 
 export const useAIStore = defineStore('aiStore', () => {
-  const { filterCharacters } = useGameStore()
+  const { selectedCharacter, filterCharacters } = useGameStore()
   const ws = useWebSocketStore()
 
   const loading = ref(false)
@@ -38,7 +38,7 @@ export const useAIStore = defineStore('aiStore', () => {
     })
 
     const json = await res.json()
-
+    console.log({ json })
     const { response, remaining_characters, robot_question, attribute, value, max_gain } = json
     robotAnswer.value = response
 
@@ -50,7 +50,7 @@ export const useAIStore = defineStore('aiStore', () => {
     }
 
     filterCharacters(remaining_characters)
-    console.log(remaining_characters.length)
+
     if (remaining_characters.length === 1) winner.value = 'human'
     loading.value = false
     return json
@@ -72,7 +72,7 @@ export const useAIStore = defineStore('aiStore', () => {
 
     if (remaining_characters?.length === 1) winner.value = 'ai'
 
-    ws.sendFastify(JSON.stringify({ decision_tree, remaining_characters }))
+    ws.sendFastify(JSON.stringify({ decision_tree, remaining_characters, selectedCharacter }))
 
     return
   }

@@ -62,7 +62,7 @@ defineProps<{
   }
 
   .portrait.framed {
-    border: 1px solid #64d8bf;
+    border: 2px solid #64d8bf;
     border-radius: 1rem;
   }
 

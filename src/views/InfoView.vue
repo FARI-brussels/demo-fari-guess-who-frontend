@@ -16,14 +16,20 @@
     </Suspense>
     <p class="hidden">{{ treeData }}</p>
     <div class="decision-tree-container">
-      <DecisionTree class="tree" v-if="treeData" :data="treeData" color="gray" />
+      <DecisionTree
+        class="tree"
+        v-if="treeData"
+        :data="treeData"
+        color="gray"
+        :selectedCharacter="userSelectedCharacter"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useWebSocketStore } from '../stores/ws'
-import { watch, computed, onMounted } from 'vue'
+import { watch, computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import DecisionTree from '@/components/decision-tree/DecisionTree.vue'
 import PlayerImage from '@/components/PlayerImage.vue'
@@ -34,6 +40,9 @@ const router = useRouter()
 const webSocketStore = useWebSocketStore()
 
 const gameStore = useGameStore()
+
+const userSelectedCharacter = ref<string | undefined>()
+
 onMounted(async () => {
   await gameStore.loadImages()
 })
@@ -51,11 +60,14 @@ const treeData = computed(() => {
   const data = JSON.parse(webSocketStore?.fastifyData)
 
   if (data?.decision_tree && Array.isArray(data.decision_tree)) {
-    const { decision_tree } = data
+    const { selectedCharacter, decision_tree } = data
     gameStore.filterCharacters(data.remaining_characters)
+    setSelectedCharacter(selectedCharacter)
     return decision_tree
   } else return null
 })
+
+const setSelectedCharacter = (name: string) => (userSelectedCharacter.value = name)
 </script>
 
 <style scoped lang="scss">
@@ -78,11 +90,6 @@ const treeData = computed(() => {
   position: absolute;
   top: 12rem;
 }
-
-// .tree {
-//   position: absolute;
-//   top: 42rem;
-// }
 
 .decision-tree-container {
   position: absolute;

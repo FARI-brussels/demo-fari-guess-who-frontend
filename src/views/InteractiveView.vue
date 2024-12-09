@@ -15,13 +15,14 @@
           </div>
         </div>
       </Suspense>
-      <div class="selected-character-container rounded-s bg-color-blue p-sm">
+      <div class="selected-character-container rounded-s bg-color-blue color-blue-light p-sm">
         <PlayerImageLarge
           :name="gameStore.selectedCharacter"
           :path="characterImage.path"
           framed
           selected
         />
+        {{ characterImage.description_short }}
       </div>
     </div>
     <div class="questions-container">
@@ -46,16 +47,17 @@
         </div>
       </div>
       <TextInput
+        ref="textInput"
         v-model="prompt"
         @submit="submit"
         :loading="ai?.loading"
-        :disabled="turn === 'ai'"
+        :disabled="turn === 'ai' || ai.winner !== null"
         icon="check"
       />
     </div>
     <div class="interactive-container"></div>
     <div class="decision-tree-container">
-      <DecisionTree class="tree" v-if="treeData" :data="treeData" />
+      <DecisionTree v-if="treeData" class="tree" :data="treeData" />
     </div>
 
     <Transition>
@@ -73,7 +75,8 @@
           </div>
         </template>
         <template #action>
-          <FButton label="close" @click="showWinner = false" />
+          <FButton type="secondary" label="close" @click="showWinner = false" />
+          <FButton label="go back" @click="webSocketStore.sendFastify('stop')" />
         </template>
       </DialogContainer>
     </Transition>
@@ -132,6 +135,17 @@ watch(
   (newQuestion) => {
     if (newQuestion) typeText(newQuestion)
   }
+)
+
+const textInput = ref(null)
+
+watch(
+  () => [turn.value, textInput.value],
+  ([newTurn, newTextinput]) => {
+    if (newTurn === 'human' && newTextinput) newTextinput.$el.querySelector('input').focus()
+    else if (newTurn === 'ai' && newTextinput) newTextinput.$el.querySelector('input').blur()
+  },
+  { immediate: true }
 )
 
 async function submit() {
@@ -285,7 +299,10 @@ const characterImage = computed(() => {
   height: inherit;
   border: 2px solid #1254e3;
   display: flex;
-  justify-content: center;
+  width: 260px;
+  gap: 1rem;
+  justify-content: space-evenly;
+  flex-direction: column;
 }
 
 .image-container {
@@ -330,9 +347,4 @@ const characterImage = computed(() => {
   overflow: scroll;
   left: 2.5rem;
 }
-
-// .tree {
-//   position: absolute;
-//   top: 58rem;
-// }
 </style>
