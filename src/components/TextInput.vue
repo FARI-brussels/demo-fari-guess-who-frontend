@@ -1,12 +1,14 @@
 <template>
-  <div class="text-input-container">
+  <div class="text-input-container" :class="{ 'text-input-container--disabled': disabled }">
     <img src="@/assets/human_input_icon.svg" class="mr-md" />
     <input
       v-model="model"
       type="text"
       placeholder="Enter your text here..."
-      class="font-weight-semibold"
+      class="input font-weight-semibold"
+      :disabled="disabled"
       @keyup.enter="!disabled && emit('submit')"
+      :class="{ disabled: disabled }"
     />
     <img src="@/assets/loading.svg" v-if="loading" class="spinner" />
 
@@ -24,7 +26,7 @@
 
 <script setup lang="ts">
 import { FButtonIcon } from 'fari-component-library'
-const emit = defineEmits('submit')
+const emit = defineEmits(['submit'])
 const model = defineModel()
 
 defineProps<{ loading: boolean; icon: string; disabled: boolean }>()
@@ -35,14 +37,18 @@ defineProps<{ loading: boolean; icon: string; disabled: boolean }>()
   display: flex;
   align-items: center;
   width: 50rem;
-  background-color: #183e91;
+
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
   padding: 0.5rem 1rem;
   border: 0.125rem solid #1254e3;
   height: 76px;
+  background-color: #183e91;
+  &--disabled {
+    background-color: #4393de50;
+  }
 
-  input {
+  .input {
     flex: 1;
     background-color: transparent;
     border: none;
@@ -50,9 +56,14 @@ defineProps<{ loading: boolean; icon: string; disabled: boolean }>()
     color: #fff; // White text
     font-size: 16px;
     padding: 0;
+
     &::placeholder {
       color: white;
     }
+  }
+
+  .disabled::placeholder {
+    color: #4393de50 !important;
   }
 }
 
