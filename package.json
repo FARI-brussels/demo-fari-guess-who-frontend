@@ -26,6 +26,7 @@
     "d3": "^7.9.0",
     "dotenv": "^16.4.5",
     "fari-component-library": "^0.6.8",
+    "fari-directus-parser": "^1.0.6",
     "fastify": "^5.0.0",
     "fastify-websocket": "^4.3.0",
     "pinia": "^2.1.7",
