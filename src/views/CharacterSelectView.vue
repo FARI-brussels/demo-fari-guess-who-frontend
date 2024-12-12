@@ -10,6 +10,7 @@
       >
         <PlayerImageLarge :name="gameStore.selectedCharacter" :path="characterImage.path" framed />
         <div class="character-description">
+          <strong class="color-white job-title">{{ characterImage.job_title }}</strong>
           <p class="color-blue-light">{{ characterImage.description_short }}</p>
         </div>
       </div>
@@ -109,7 +110,7 @@ onMounted(async () => !gameStore.allCharacters.length && (await gameStore.loadIm
 
 .selected-character-container {
   width: 512px;
-  height: 244px;
+  height: 260px;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -118,8 +119,16 @@ onMounted(async () => !gameStore.allCharacters.length && (await gameStore.loadIm
   left: 25%;
 }
 
+.job-title {
+  margin-bottom: auto;
+  font-weight: bold;
+}
+
 .character-description {
+  height: 100%;
   width: 220px;
+  display: flex;
+  flex-direction: column;
 }
 
 .action {
