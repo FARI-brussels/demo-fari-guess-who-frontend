@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:full": "concurrently \"vite\" \"tsx ./src/server/index.ts\"",
+    "dev": "concurrently \"vite\" \"tsx ./src/server/index.ts\"",
+    "frontend:dev": "vite",
     "backend:dev": "tsx ./src/server/index.ts",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
